@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { useWorld } from '../context/WorldContext';
 import { I18N } from '../constants';
 import { Clock, Database, Star, Hash, Link as LinkIcon, PieChart, Activity, Calendar, GitCommit, Layers } from 'lucide-react';
-import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts';
+import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 const Dashboard = () => {
   const { data, language } = useWorld();
@@ -11,10 +11,10 @@ const Dashboard = () => {
 
   // 1. Stats Cards Data
   const stats = [
-    { label: I18N.total_entities[language], value: entities.length, icon: Database, color: 'bg-blue-500' },
-    { label: I18N.categories[language], value: categories.length, icon: Star, color: 'bg-purple-500' },
-    { label: I18N.tags[language].split('(')[0], value: new Set(entities.flatMap(e => e.tags)).size, icon: Hash, color: 'bg-emerald-500' },
-    { label: I18N.relationships[language], value: entities.reduce((acc, e) => acc + (e.relationships?.length || 0), 0), icon: LinkIcon, color: 'bg-orange-500' }
+    { label: I18N.total_entities[language], value: entities.length, icon: Database, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: I18N.categories[language], value: categories.length, icon: Star, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: I18N.tags[language].split('(')[0], value: new Set(entities.flatMap(e => e.tags)).size, icon: Hash, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: I18N.relationships[language], value: entities.reduce((acc, e) => acc + (e.relationships?.length || 0), 0), icon: LinkIcon, color: 'text-orange-600', bg: 'bg-orange-50' }
   ];
 
   // 2. Recent Updates
@@ -34,7 +34,7 @@ const Dashboard = () => {
     .slice(0, 20);
   const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
 
-  // 4. Category Distribution Data (Pie Chart)
+  // 4. Category Distribution Data
   const categoryData = useMemo(() => {
     return categories.map(cat => ({
       name: cat.name,
@@ -43,11 +43,10 @@ const Dashboard = () => {
     })).filter(d => d.value > 0);
   }, [categories, entities]);
 
-  // 5. Era Distribution Data (Bar Chart) - NEW
+  // 5. Era Distribution
   const eraData = useMemo(() => {
      if (!calendarConfig?.eras) return [];
      const counts: Record<string, number> = {};
-     // Initialize
      calendarConfig.eras.forEach(e => counts[e.name] = 0);
      counts['Unknown'] = 0;
 
@@ -56,7 +55,6 @@ const Dashboard = () => {
          if (era && counts[era] !== undefined) {
              counts[era]++;
          } else if (e.attributes.some(a => ['year', 'date', '年份'].includes(a.key.toLowerCase()))) {
-             // Has date but no explicit era, simplified for chart
              counts['Unknown']++;
          }
      });
@@ -66,7 +64,7 @@ const Dashboard = () => {
         .filter(d => d.count > 0);
   }, [entities, calendarConfig]);
 
-  // 6. Top Connected Entities
+  // 6. Top Connected
   const topConnected = useMemo(() => {
     return [...entities]
       .map(e => ({
@@ -78,7 +76,7 @@ const Dashboard = () => {
       .slice(0, 5);
   }, [entities]);
 
-  // 7. Timeline Span Stats
+  // 7. Timeline Span
   const timelineStats = useMemo(() => {
      let minYear = Infinity;
      let maxYear = -Infinity;
@@ -102,67 +100,98 @@ const Dashboard = () => {
      return hasDates ? { min: minYear, max: maxYear, span: maxYear - minYear } : null;
   }, [entities]);
 
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-2 border border-gray-100 shadow-xl rounded-lg text-xs">
+          <p className="font-semibold text-gray-800 mb-1">{label}</p>
+          <p style={{ color: payload[0].fill }}>
+            {`${payload[0].name}: ${payload[0].value}`}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500 pb-20">
-      <header>
-        <h1 className="text-3xl font-light text-gray-900 mb-2">{I18N.welcome[language]}</h1>
-        <p className="text-gray-500">
-          {I18N.last_updated[language]} {new Date(lastModified).toLocaleString()}
-        </p>
+    <div className="p-8 space-y-8 animate-slide-up pb-20 max-w-[1600px] mx-auto">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-100 pb-6">
+        <div>
+            <h1 className="text-4xl font-extralight tracking-tight text-slate-800 mb-2">{I18N.welcome[language]}</h1>
+            <p className="text-slate-400 text-sm font-medium">
+            {I18N.last_updated[language]} <span className="font-mono text-slate-600">{new Date(lastModified).toLocaleString()}</span>
+            </p>
+        </div>
       </header>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-            <div className={`p-3 rounded-xl ${stat.color} bg-opacity-10`}>
-              <stat.icon className={`w-6 h-6 ${stat.color.replace('bg-', 'text-')}`} />
+          <div key={idx} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex items-center space-x-5 group">
+            <div className={`p-4 rounded-xl ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform duration-300`}>
+              <stat.icon className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{stat.label}</p>
+              <p className="text-3xl font-bold text-slate-800 mt-1">{stat.value}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         
         {/* Main Column */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="xl:col-span-2 space-y-8">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Category Dist */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm min-h-[300px] flex flex-col">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><PieChart className="w-5 h-5 mr-2 text-gray-400" /> Categories</h2>
-                    <div className="flex-1 min-h-[200px]">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm min-h-[340px] flex flex-col">
+                    <h2 className="text-sm font-bold text-slate-700 uppercase mb-6 flex items-center tracking-wider">
+                        <PieChart className="w-4 h-4 mr-2 text-slate-400" /> Categories
+                    </h2>
+                    <div className="flex-1 min-h-[220px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <RePieChart>
-                                <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                    {categoryData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
+                                <Pie 
+                                    data={categoryData} 
+                                    cx="50%" cy="50%" 
+                                    innerRadius={60} 
+                                    outerRadius={80} 
+                                    paddingAngle={5} 
+                                    dataKey="value"
+                                    cornerRadius={4}
+                                >
+                                    {categoryData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} stroke="none" />))}
                                 </Pie>
-                                <ReTooltip />
+                                <ReTooltip content={<CustomTooltip />} />
                             </RePieChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* Era Dist (NEW) */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm min-h-[300px] flex flex-col">
-                     <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Layers className="w-5 h-5 mr-2 text-gray-400" /> Eras Breakdown</h2>
-                     <div className="flex-1 min-h-[200px]">
+                {/* Era Dist */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm min-h-[340px] flex flex-col">
+                     <h2 className="text-sm font-bold text-slate-700 uppercase mb-6 flex items-center tracking-wider">
+                        <Layers className="w-4 h-4 mr-2 text-slate-400" /> Eras Distribution
+                     </h2>
+                     <div className="flex-1 min-h-[220px]">
                         {eraData.length > 0 ? (
                              <ResponsiveContainer width="100%" height="100%">
-                                 <BarChart data={eraData}>
-                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                     <XAxis dataKey="name" tick={{fontSize: 10}} interval={0} />
-                                     <YAxis tick={{fontSize: 10}} allowDecimals={false} />
-                                     <ReTooltip cursor={{fill: 'transparent'}} />
-                                     <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                                 <BarChart data={eraData} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
+                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                     <XAxis dataKey="name" tick={{fontSize: 10, fill: '#94a3b8'}} interval={0} axisLine={false} tickLine={false} />
+                                     <YAxis tick={{fontSize: 10, fill: '#94a3b8'}} allowDecimals={false} axisLine={false} tickLine={false} />
+                                     <ReTooltip content={<CustomTooltip />} cursor={{fill: '#f8fafc'}} />
+                                     <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={32} />
                                  </BarChart>
                              </ResponsiveContainer>
                         ) : (
-                            <div className="h-full flex items-center justify-center text-gray-400 text-sm">No historical data</div>
+                            <div className="h-full flex flex-col items-center justify-center text-slate-300">
+                                <Layers className="w-12 h-12 mb-2 opacity-50" />
+                                <span className="text-sm">No historical data</span>
+                            </div>
                         )}
                      </div>
                 </div>
@@ -170,14 +199,20 @@ const Dashboard = () => {
 
             {/* Tag Cloud */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Hash className="w-5 h-5 mr-2 text-gray-400" /> {I18N.tag_cloud[language]}</h2>
-              <div className="flex-1 w-full bg-gray-50 rounded-xl p-6 flex flex-wrap gap-3 content-start min-h-[100px]">
-                 {sortedTags.length === 0 ? <div className="text-gray-400 text-sm">{I18N.add_tags_hint[language]}</div> : 
+              <h2 className="text-sm font-bold text-slate-700 uppercase mb-4 flex items-center tracking-wider">
+                  <Hash className="w-4 h-4 mr-2 text-slate-400" /> {I18N.tag_cloud[language]}
+              </h2>
+              <div className="flex-1 w-full flex flex-wrap gap-2 content-start">
+                 {sortedTags.length === 0 ? <div className="text-slate-400 text-sm italic w-full text-center py-8">{I18N.add_tags_hint[language]}</div> : 
                    sortedTags.map(([tag, count]) => {
                      const scale = 0.5 + (count / maxTagCount) * 1.5; 
                      return (
-                       <span key={tag} className="px-3 py-1 rounded-full bg-white border border-gray-200 text-primary-700 transition-all hover:shadow-sm" style={{ fontSize: `${Math.max(0.75, Math.min(scale, 2))}rem`, opacity: 0.6 + (count/maxTagCount)*0.4 }}>
-                          #{tag}<span className="ml-1 text-[0.6em] text-gray-400 font-bold align-top">{count}</span>
+                       <span 
+                            key={tag} 
+                            className="px-3 py-1.5 rounded-md bg-slate-50 border border-slate-100 text-slate-600 transition-all hover:bg-white hover:border-primary-200 hover:text-primary-600 hover:shadow-sm cursor-default" 
+                            style={{ fontSize: `${Math.max(0.75, Math.min(scale, 1.5))}rem`, opacity: 0.7 + (count/maxTagCount)*0.3 }}
+                        >
+                          #{tag}<span className="ml-1.5 text-[0.6em] text-slate-400 font-bold align-top bg-white px-1 rounded-sm shadow-sm">{count}</span>
                        </span>
                      );
                    })
@@ -187,23 +222,28 @@ const Dashboard = () => {
         </div>
 
         {/* Right Column */}
-        <div className="lg:col-span-1 space-y-8">
+        <div className="xl:col-span-1 space-y-8">
             {/* Timeline Stats */}
             {timelineStats && (
-                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-md">
-                    <h2 className="text-lg font-semibold mb-4 flex items-center opacity-90"><Calendar className="w-5 h-5 mr-2" /> World Timeline</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                            <p className="text-xs uppercase tracking-wide opacity-70">Start</p>
-                            <p className="text-xl font-mono font-bold">{timelineStats.min}</p>
-                        </div>
-                        <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                            <p className="text-xs uppercase tracking-wide opacity-70">End</p>
-                            <p className="text-xl font-mono font-bold">{timelineStats.max}</p>
-                        </div>
-                        <div className="col-span-2 bg-white/20 rounded-lg p-3 backdrop-blur-sm flex justify-between items-center">
-                            <div><p className="text-xs uppercase tracking-wide opacity-70">Total Span</p><p className="text-2xl font-mono font-bold">{timelineStats.span} <span className="text-sm font-sans font-normal opacity-80">years</span></p></div>
-                            <Activity className="w-8 h-8 opacity-50" />
+                <div className="relative overflow-hidden rounded-2xl p-6 text-white shadow-lg group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-800"></div>
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                    
+                    <div className="relative z-10">
+                        <h2 className="text-sm font-bold mb-6 flex items-center opacity-90 uppercase tracking-widest"><Calendar className="w-4 h-4 mr-2" /> Timeline Span</h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors">
+                                <p className="text-[10px] uppercase tracking-wide opacity-70 mb-1">Start Year</p>
+                                <p className="text-2xl font-mono font-bold">{timelineStats.min}</p>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors">
+                                <p className="text-[10px] uppercase tracking-wide opacity-70 mb-1">End Year</p>
+                                <p className="text-2xl font-mono font-bold">{timelineStats.max}</p>
+                            </div>
+                            <div className="col-span-2 bg-white/20 rounded-xl p-4 backdrop-blur-md border border-white/10 flex justify-between items-center mt-2">
+                                <div><p className="text-[10px] uppercase tracking-wide opacity-70 mb-1">Total Duration</p><p className="text-3xl font-mono font-bold text-indigo-50">{timelineStats.span}</p></div>
+                                <Activity className="w-10 h-10 opacity-30 rotate-12" />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -211,35 +251,44 @@ const Dashboard = () => {
 
             {/* Top Connections */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><GitCommit className="w-5 h-5 mr-2 text-gray-400" /> Top Connected</h2>
-                <div className="space-y-3 flex-1">
+                <h2 className="text-sm font-bold text-slate-700 uppercase mb-4 flex items-center tracking-wider">
+                    <GitCommit className="w-4 h-4 mr-2 text-slate-400" /> Top Connected
+                </h2>
+                <div className="space-y-4 flex-1">
                     {topConnected.map((item, idx) => (
-                        <div key={item.id} className="flex items-center justify-between">
-                            <div className="flex items-center">
-                                <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold mr-3 ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>{idx + 1}</span>
-                                <span className="text-sm font-medium text-gray-700 truncate max-w-[120px]">{item.title}</span>
+                        <div key={item.id} className="flex items-center justify-between group cursor-default">
+                            <div className="flex items-center overflow-hidden">
+                                <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold mr-3 transition-colors ${idx === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{idx + 1}</span>
+                                <span className="text-sm font-medium text-slate-700 truncate max-w-[120px] group-hover:text-primary-600 transition-colors">{item.title}</span>
                             </div>
-                            <span className="text-xs font-mono text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">{item.connections} links</span>
+                            <div className="flex items-center">
+                                <div className="h-1.5 w-16 bg-slate-100 rounded-full mr-2 overflow-hidden">
+                                    <div className="h-full bg-primary-400 rounded-full" style={{ width: `${Math.min(100, item.connections * 10)}%` }}></div>
+                                </div>
+                                <span className="text-xs font-mono text-slate-400">{item.connections}</span>
+                            </div>
                         </div>
                     ))}
-                    {topConnected.length === 0 && <div className="text-gray-400 text-sm">No connections</div>}
+                    {topConnected.length === 0 && <div className="text-slate-400 text-sm italic">No connections</div>}
                 </div>
             </div>
 
             {/* Recent Updates */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Clock className="w-5 h-5 mr-2 text-gray-400" /> {I18N.recent_updates[language]}</h2>
-              <div className="space-y-4">
+              <h2 className="text-sm font-bold text-slate-700 uppercase mb-4 flex items-center tracking-wider">
+                  <Clock className="w-4 h-4 mr-2 text-slate-400" /> {I18N.recent_updates[language]}
+              </h2>
+              <div className="space-y-0">
                   {recentEntities.map(e => (
-                    <div key={e.id} className="flex items-center justify-between pb-3 border-b border-gray-50 last:border-0">
-                      <div>
-                        <p className="font-medium text-gray-800 truncate max-w-[150px]">{e.title}</p>
-                        <p className="text-xs text-gray-500">{categories.find(c => c.id === e.categoryId)?.name}</p>
+                    <div key={e.id} className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 -mx-2 px-2 rounded-lg transition-colors cursor-default">
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-700 truncate text-sm">{e.title}</p>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5">{categories.find(c => c.id === e.categoryId)?.name}</p>
                       </div>
-                      <span className="text-xs text-gray-400">{new Date(e.updatedAt).toLocaleDateString()}</span>
+                      <span className="text-xs text-slate-400 font-mono whitespace-nowrap ml-2">{new Date(e.updatedAt).toLocaleDateString()}</span>
                     </div>
                   ))}
-                  {recentEntities.length === 0 && <div className="text-gray-400 text-sm">{I18N.no_entities[language]}</div>}
+                  {recentEntities.length === 0 && <div className="text-slate-400 text-sm italic">{I18N.no_entities[language]}</div>}
               </div>
             </div>
         </div>

@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Entity, Category, Attribute, Relationship, NodeShape, LineStyle } from '../types';
 import { I18N } from '../constants';
 import { useWorld } from '../context/WorldContext';
-import { X, Plus, Trash2, Save, Users, Link as LinkIcon, FileText, Check, Edit2, Palette, Circle, Square, Hexagon, Diamond, CalendarClock, ArrowRight, AlertTriangle } from 'lucide-react';
+import { X, Plus, Trash2, Save, Link as LinkIcon, FileText, Check, Edit2, Palette, Circle, Square, Hexagon, Diamond, CalendarClock, ArrowRight, AlertTriangle } from 'lucide-react';
 
 interface EntityEditorProps {
   entity?: Entity;
@@ -100,6 +100,8 @@ const EntityEditor: React.FC<EntityEditorProps> = ({
   const [newRelTargetId, setNewRelTargetId] = useState('');
   const [newRelType, setNewRelType] = useState('');
   const [newRelStyle, setNewRelStyle] = useState<LineStyle>('solid');
+  
+  // Editing Relationship State
   const [editingRelId, setEditingRelId] = useState<string | null>(null);
   const [editingRelType, setEditingRelType] = useState('');
   const [editingRelStyle, setEditingRelStyle] = useState<LineStyle>('solid');
@@ -179,13 +181,37 @@ const EntityEditor: React.FC<EntityEditorProps> = ({
   };
   const removeAttribute = (index: number) => setGenericAttributes(genericAttributes.filter((_, i) => i !== index));
   
-  // Relationship Handlers (Same as before)
+  // Relationship Handlers
   const addRelationship = () => {
       if (!newRelTargetId || !newRelType.trim()) return;
       setRelationships([...relationships, { id: crypto.randomUUID(), targetId: newRelTargetId, type: newRelType, style: newRelStyle }]);
       setNewRelType(''); setNewRelTargetId('');
   };
   const removeRelationship = (id: string) => setRelationships(relationships.filter(r => r.id !== id));
+
+  // Edit Relationship Handlers
+  const startEditingRel = (rel: Relationship) => {
+    setEditingRelId(rel.id);
+    setEditingRelType(rel.type);
+    setEditingRelStyle(rel.style || 'solid');
+  };
+
+  const cancelEditingRel = () => {
+    setEditingRelId(null);
+    setEditingRelType('');
+    setEditingRelStyle('solid');
+  };
+
+  const saveEditingRel = () => {
+    if (!editingRelId || !editingRelType.trim()) return;
+    
+    setRelationships(relationships.map(r => 
+      r.id === editingRelId 
+        ? { ...r, type: editingRelType, style: editingRelStyle }
+        : r
+    ));
+    cancelEditingRel();
+  };
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex justify-end">
@@ -355,7 +381,6 @@ const EntityEditor: React.FC<EntityEditorProps> = ({
 
           {activeTab === 'relationships' && (
               <div className="space-y-6">
-                  {/* ... Existing Relationship UI ... */}
                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <h3 className="text-sm font-semibold text-gray-700 mb-3">{I18N.add_relationship[language]}</h3>
                       <div className="flex flex-col gap-3">
@@ -389,13 +414,46 @@ const EntityEditor: React.FC<EntityEditorProps> = ({
                    <div className="space-y-3">
                       {relationships.map(rel => {
                               const target = data.entities.find(e => e.id === rel.targetId);
-                              return (
-                                  <div key={rel.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg group">
-                                      <div className="flex items-center flex-1">
-                                          <div className="w-2 h-2 rounded-full bg-primary-400 mr-3"></div>
-                                          <div className="flex-1"><p className="text-gray-800 font-medium text-sm">{rel.type} <span className="text-gray-400 font-normal">→ {target?.title}</span></p></div>
+                              const isEditing = editingRelId === rel.id;
+
+                              if (isEditing) {
+                                  return (
+                                      <div key={rel.id} className="flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg animate-in fade-in">
+                                          <input 
+                                            value={editingRelType}
+                                            onChange={(e) => setEditingRelType(e.target.value)}
+                                            className="flex-1 px-2 py-1 text-sm border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Type..."
+                                            autoFocus
+                                          />
+                                          <select
+                                              value={editingRelStyle}
+                                              onChange={(e) => setEditingRelStyle(e.target.value as LineStyle)}
+                                              className="w-24 px-2 py-1 text-sm border border-indigo-300 rounded bg-white outline-none"
+                                          >
+                                             <option value="solid">Solid</option>
+                                             <option value="dashed">Dashed</option>
+                                             <option value="dotted">Dotted</option>
+                                          </select>
+                                          <button onClick={saveEditingRel} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="Save"><Check className="w-4 h-4" /></button>
+                                          <button onClick={cancelEditingRel} className="p-1.5 text-gray-500 hover:bg-gray-200 rounded" title="Cancel"><X className="w-4 h-4" /></button>
                                       </div>
-                                      <button onClick={() => removeRelationship(rel.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                                  );
+                              }
+
+                              return (
+                                  <div key={rel.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg group hover:border-indigo-300 transition-colors">
+                                      <div className="flex items-center flex-1 min-w-0">
+                                          <div className={`w-2 h-2 rounded-full mr-3 flex-shrink-0 ${rel.style === 'dashed' ? 'bg-indigo-300' : rel.style === 'dotted' ? 'bg-indigo-200' : 'bg-indigo-500'}`}></div>
+                                          <div className="flex-1 truncate">
+                                              <span className="text-gray-900 font-semibold text-sm mr-2">{rel.type}</span>
+                                              <span className="text-gray-400 font-normal text-xs">→ {target?.title || 'Unknown'}</span>
+                                          </div>
+                                      </div>
+                                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                           <button onClick={() => startEditingRel(rel)} className="text-gray-400 hover:text-indigo-600 p-1.5 hover:bg-indigo-50 rounded transition-colors" title="Edit"><Edit2 className="w-3.5 h-3.5" /></button>
+                                           <button onClick={() => removeRelationship(rel.id)} className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                                      </div>
                                   </div>
                               )
                       })}
