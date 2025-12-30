@@ -1,5 +1,5 @@
 {
   "name": "Aetheria - World Builder",
-  "description": "A minimalist, high-performance world-building manager designed for creators to organize lore, characters, and settings without AI interference.",
+  "description": "A minimalist, offline-first world-building manager designed for creators to organize lore, characters, and settings locally.",
   "requestFramePermissions": []
 }

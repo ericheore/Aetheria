@@ -10,7 +10,7 @@ const Sidebar = () => {
   
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: I18N.dashboard[language] },
-    { path: '/workspace', icon: Columns, label: 'Workspace' }, // New Item
+    { path: '/workspace', icon: Columns, label: 'Workspace' }, 
     { path: '/entities', icon: Book, label: I18N.entities[language] },
     { path: '/categories', icon: Layers, label: I18N.categories[language] },
     { path: '/graph', icon: Network, label: I18N.graph_view[language] },
@@ -46,7 +46,7 @@ const Sidebar = () => {
       
       <div className="p-4 border-t border-gray-100">
         <div className="text-xs text-gray-400 text-center">
-          v1.1.0 Workspace
+          v1.2.0 Standalone (Offline)
         </div>
       </div>
     </aside>
