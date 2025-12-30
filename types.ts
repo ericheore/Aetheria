@@ -44,6 +44,7 @@ export interface Entity {
   id: string;
   categoryId: string;
   title: string;
+  nodeNote?: string; // New: Subtitle/Annotation for graph visualization
   description: string; // Main content (Markdown-lite)
   tags: string[];
   attributes: Attribute[];
@@ -54,6 +55,34 @@ export interface Entity {
   customShape?: NodeShape; // New: Visual shape
   createdAt: number;
   updatedAt: number;
+}
+
+// --- Graph Specific Types (Moved from GraphView) ---
+export interface GraphNode extends Entity {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    fx: number;
+    fy: number;
+    radius: number;
+    color: string;
+    mass: number;
+}
+
+export interface Edge {
+    id: string; // Rel ID
+    source: string;
+    target: string;
+    label: string;
+    style?: LineStyle;
+    customColor?: string;
+    width?: number;
+    // For curvature
+    index: number; 
+    total: number;
+    isSelf: boolean;
+    inverseExists: boolean;
 }
 
 // Custom Calendar System for World Building

@@ -401,19 +401,19 @@ const Timeline = () => {
                   {showStickyConfig && stickyLabels && (
                       <div className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-xl p-3 z-50 w-56 space-y-2 animate-in slide-in-from-top-2">
                           <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                              <input type="checkbox" checked={stickyConfig.showDates} onChange={e => setStickyConfig({...stickyConfig, showDates: e.target.checked})} className="rounded text-primary-600" /> Show Dates
+                              <input type="checkbox" checked={stickyConfig.showDates} onChange={e => setStickyConfig({...stickyConfig, showDates: e.target.checked})} className="rounded text-primary-600" /> {I18N.show_dates[language]}
                           </label>
                           <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                              <input type="checkbox" checked={stickyConfig.showJumpControls} onChange={e => setStickyConfig({...stickyConfig, showJumpControls: e.target.checked})} className="rounded text-primary-600" /> Show Jump Buttons
+                              <input type="checkbox" checked={stickyConfig.showJumpControls} onChange={e => setStickyConfig({...stickyConfig, showJumpControls: e.target.checked})} className="rounded text-primary-600" /> {I18N.show_jump_controls[language]}
                           </label>
                           <div className="border-t border-gray-100 pt-2">
                              <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer mb-1">
-                                  <input type="checkbox" checked={stickyConfig.showDescription} onChange={e => setStickyConfig({...stickyConfig, showDescription: e.target.checked})} className="rounded text-primary-600" /> Show Description
+                                  <input type="checkbox" checked={stickyConfig.showDescription} onChange={e => setStickyConfig({...stickyConfig, showDescription: e.target.checked})} className="rounded text-primary-600" /> {I18N.show_description[language]}
                               </label>
                               {stickyConfig.showDescription && (
                                   <div className="pl-5 pr-1">
                                       <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-                                          <span>Max Lines</span>
+                                          <span>{I18N.max_lines[language]}</span>
                                           <span>{stickyConfig.maxLines}</span>
                                       </div>
                                       <input 
@@ -540,14 +540,14 @@ const Timeline = () => {
                                                                 <button 
                                                                     onClick={(e) => { e.stopPropagation(); scrollToPosition(item.timePos); }} 
                                                                     className="p-1 hover:bg-white hover:text-primary-600 rounded text-gray-400 transition-colors" 
-                                                                    title="Go to Start"
+                                                                    title={I18N.go_to_start[language]}
                                                                 >
                                                                     {viewMode === 'vertical' ? <ArrowUp className="w-3 h-3" /> : <ArrowLeft className="w-3 h-3" />}
                                                                 </button>
                                                                 <button 
                                                                     onClick={(e) => { e.stopPropagation(); scrollToPosition(item.timePos + item.timeSpan); }} 
                                                                     className="p-1 hover:bg-white hover:text-primary-600 rounded text-gray-400 transition-colors" 
-                                                                    title="Go to End"
+                                                                    title={I18N.go_to_end[language]}
                                                                 >
                                                                     {viewMode === 'vertical' ? <ArrowDown className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
                                                                 </button>

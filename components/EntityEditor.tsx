@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Entity, Category, Attribute, Relationship, NodeShape, LineStyle } from '../types';
 import { I18N } from '../constants';
 import { useWorld } from '../context/WorldContext';
-import { X, Plus, Trash2, Save, Link as LinkIcon, FileText, Check, Edit2, Palette, Circle, Square, Hexagon, Diamond, CalendarClock, ArrowRight, AlertTriangle } from 'lucide-react';
+import { X, Plus, Trash2, Save, Link as LinkIcon, FileText, Check, Edit2, Palette, Circle, Square, Hexagon, Diamond, CalendarClock, ArrowRight, AlertTriangle, MessageSquare } from 'lucide-react';
 
 interface EntityEditorProps {
   entity?: Entity;
@@ -32,6 +32,7 @@ const EntityEditor: React.FC<EntityEditorProps> = ({
   const [activeTab, setActiveTab] = useState<Tab>('content');
 
   const [title, setTitle] = useState(entity?.title || '');
+  const [nodeNote, setNodeNote] = useState(entity?.nodeNote || '');
   const [categoryId, setCategoryId] = useState(entity?.categoryId || initialCategoryId || categories[0]?.id || '');
   const [description, setDescription] = useState(entity?.description || '');
   const [tags, setTags] = useState<string[]>(entity?.tags || []);
@@ -144,6 +145,7 @@ const EntityEditor: React.FC<EntityEditorProps> = ({
     onSave({
       categoryId,
       title,
+      nodeNote,
       description,
       tags,
       attributes: finalAttributes,
@@ -260,6 +262,21 @@ const EntityEditor: React.FC<EntityEditorProps> = ({
                     </div>
                 </div>
 
+                {/* Node Note (Subtitle) */}
+                <div className="space-y-2">
+                    <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                        <MessageSquare className="w-3 h-3" />
+                        {I18N.node_note[language]}
+                    </label>
+                    <input 
+                        type="text" 
+                        value={nodeNote} 
+                        onChange={(e) => setNodeNote(e.target.value)} 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50" 
+                        placeholder={I18N.ph_node_note[language]} 
+                    />
+                </div>
+
                 {/* Tags */}
                 <div className="space-y-2">
                     <label className="text-xs font-semibold text-gray-500 uppercase">{I18N.tags[language]}</label>
@@ -346,8 +363,8 @@ const EntityEditor: React.FC<EntityEditorProps> = ({
 
                             {/* Granularity */}
                             <div className="flex gap-2 pt-2 border-t border-slate-200">
-                                <input placeholder="Month (Optional)" value={customMonth} onChange={e => setCustomMonth(e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded" />
-                                <input placeholder="Day (Optional)" value={customDay} onChange={e => setCustomDay(e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded" />
+                                <input placeholder={I18N.ph_month[language]} value={customMonth} onChange={e => setCustomMonth(e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded" />
+                                <input placeholder={I18N.ph_day[language]} value={customDay} onChange={e => setCustomDay(e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded" />
                             </div>
                         </div>
                     )}

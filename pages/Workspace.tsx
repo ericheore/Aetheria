@@ -5,6 +5,8 @@ import GraphView from './GraphView';
 import Timeline from './Timeline';
 import EntityManager from './EntityManager';
 import CategoryManager from './Categories';
+import { I18N } from '../constants'; // Import
+import { useWorld } from '../context/WorldContext'; // Import
 
 type ViewType = 'Graph' | 'Timeline' | 'Entities' | 'Categories' | 'Empty';
 
@@ -15,6 +17,8 @@ interface Pane {
 }
 
 const Workspace = () => {
+    const { language } = useWorld(); // Get language
+    
     // Initial State: 2 Panes
     const [panes, setPanes] = useState<Pane[]>([
         { id: '1', type: 'Graph', flex: 1 },
@@ -35,21 +39,6 @@ const Workspace = () => {
             
             // Get the total width of the container
             const containerRect = containerRef.current.getBoundingClientRect();
-            const totalWidth = containerRect.width;
-            
-            // Calculate cursor position relative to container
-            const relativeX = e.clientX - containerRect.left;
-            
-            // We are resizing panes[dragIndex] and panes[dragIndex + 1]
-            // We need to figure out what their combined flex "share" is currently.
-            // But simpler logic for Flexbox resizing:
-            // Calculate percent position of the cursor within the combined width of the two panes? 
-            // Too complex. Simpler heuristic:
-            
-            // Let's just adjust flex values directly based on mouse movement delta?
-            // A bit hard.
-            // Alternative: Fixed width calculation? 
-            // Let's stick to Flex. We need to find the specific DOM elements to get their current widths.
             
             // Get all pane elements
             const paneElements = Array.from(containerRef.current.children).filter(c => c.classList.contains('workspace-pane')) as HTMLElement[];
@@ -70,12 +59,9 @@ const Workspace = () => {
             const newLeftWidth = Math.max(100, Math.min(combinedWidth - 100, cursorInPair));
             const newRightWidth = combinedWidth - newLeftWidth;
             
-            // Convert to Flex Ratio (proportional to pixel width)
-            // We update the flex values to match the new pixel widths
+            // Convert to Flex Ratio
             const newPanes = [...panes];
             
-            // Normalize so total flex remains roughly same? 
-            // Actually, we can just set flex to the pixel width temporarily or ratio.
             newPanes[dragIndex].flex = newLeftWidth;
             newPanes[dragIndex + 1].flex = newRightWidth;
             
@@ -126,7 +112,7 @@ const Workspace = () => {
             case 'Timeline': return <div className="h-full w-full overflow-hidden relative"><Timeline /></div>;
             case 'Entities': return <div className="h-full w-full overflow-hidden relative"><EntityManager /></div>;
             case 'Categories': return <div className="h-full w-full overflow-hidden relative"><CategoryManager /></div>;
-            default: return <div className="h-full w-full flex items-center justify-center bg-gray-50 text-gray-400 select-none">Select a tool from the menu</div>;
+            default: return <div className="h-full w-full flex items-center justify-center bg-gray-50 text-gray-400 select-none">{I18N.select_tool_hint[language]}</div>;
         }
     };
 
@@ -136,13 +122,13 @@ const Workspace = () => {
             <div className="h-10 border-b border-gray-200 bg-white px-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <Split className="w-4 h-4 text-primary-600" />
-                    Workspace
+                    {I18N.workspace[language]}
                 </div>
                 <button 
                     onClick={addPane}
                     className="flex items-center gap-1 text-xs font-medium bg-primary-50 text-primary-700 px-2 py-1 rounded border border-primary-200 hover:bg-primary-100 transition-colors"
                 >
-                    <Plus className="w-3 h-3" /> Add Pane
+                    <Plus className="w-3 h-3" /> {I18N.add_pane[language]}
                 </button>
             </div>
 
@@ -160,12 +146,13 @@ const Workspace = () => {
                                 <ViewSelector 
                                     value={pane.type} 
                                     onChange={(t) => updatePaneType(index, t)} 
+                                    language={language}
                                 />
                                 {panes.length > 1 && (
                                     <button 
                                         onClick={() => removePane(index)}
                                         className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
-                                        title="Close Pane"
+                                        title={I18N.close_pane_tooltip[language]}
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
@@ -199,7 +186,7 @@ const Workspace = () => {
 };
 
 // --- Helper: Robust Dropdown Selector ---
-const ViewSelector = ({ value, onChange }: { value: ViewType, onChange: (v: ViewType) => void }) => {
+const ViewSelector = ({ value, onChange, language }: { value: ViewType, onChange: (v: ViewType) => void, language: string }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -213,6 +200,16 @@ const ViewSelector = ({ value, onChange }: { value: ViewType, onChange: (v: View
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
+    const getLabel = (type: ViewType) => {
+        switch(type) {
+            case 'Graph': return I18N.graph_view[language];
+            case 'Timeline': return I18N.timeline_view[language];
+            case 'Entities': return I18N.entities[language];
+            case 'Categories': return I18N.categories[language];
+            default: return type;
+        }
+    };
+
     return (
         <div className="relative" ref={containerRef}>
             <button 
@@ -224,7 +221,7 @@ const ViewSelector = ({ value, onChange }: { value: ViewType, onChange: (v: View
                 {value === 'Entities' && <Book className="w-3 h-3 text-emerald-500" />}
                 {value === 'Categories' && <LayoutGrid className="w-3 h-3 text-orange-500" />}
                 {value === 'Empty' && <span className="w-3 h-3 block bg-gray-200 rounded-full" />}
-                {value}
+                {getLabel(value)}
                 <ChevronDown className={`w-3 h-3 text-gray-400 ml-1 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             
@@ -240,7 +237,7 @@ const ViewSelector = ({ value, onChange }: { value: ViewType, onChange: (v: View
                             {v === 'Timeline' && <History className="w-3 h-3" />}
                             {v === 'Entities' && <Book className="w-3 h-3" />}
                             {v === 'Categories' && <LayoutGrid className="w-3 h-3" />}
-                            {v}
+                            {getLabel(v as ViewType)}
                         </button>
                     ))}
                 </div>
