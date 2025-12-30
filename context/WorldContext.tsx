@@ -1,14 +1,10 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { WorldData, Entity, Category, WorldContextType, Language, CalendarConfig } from '../types';
 import { loadWorld, saveWorld } from '../services/storage';
 import { I18N } from '../constants';
 import { useToast } from './ToastContext';
-
-interface HistoryItem {
-  data: WorldData;
-  action: string;
-}
+import { useHistory } from '../hooks/useHistory';
 
 // Extend context type for the new feature
 interface ExtendedWorldContextType extends WorldContextType {
@@ -18,95 +14,40 @@ interface ExtendedWorldContextType extends WorldContextType {
 const WorldContext = createContext<ExtendedWorldContextType | undefined>(undefined);
 
 export const WorldProvider = ({ children }: { children: ReactNode }) => {
-  const [data, setData] = useState<WorldData>(loadWorld());
+  // 1. Core State
   const [language, setLanguage] = useState<Language>('zh');
   const { showToast } = useToast();
 
-  // History State
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const isUndoRedoAction = useRef(false);
+  // 2. History & Data Management Hook
+  // We initialize the hook with loaded data.
+  const history = useHistory<WorldData>(loadWorld(), language);
+  const data = history.state;
 
-  // Initialize history on load
-  useEffect(() => {
-    if (history.length === 0) {
-      setHistory([{ data, action: 'Initial' }]);
-      setHistoryIndex(0);
-    }
-  }, []);
-
-  // Persist on change
+  // 3. Persistence Effect
   useEffect(() => {
     saveWorld(data);
-    if (isUndoRedoAction.current) {
-       isUndoRedoAction.current = false;
+    if (history.isUndoRedoAction.current) {
+       history.isUndoRedoAction.current = false;
     }
-  }, [data]);
+  }, [data, history.isUndoRedoAction]);
 
-  // Helper to push history
-  const pushHistory = (newData: WorldData, action: string) => {
-      setHistory(prev => {
-          const newHistory = prev.slice(0, historyIndex + 1);
-          if (newHistory.length > 50) newHistory.shift(); // Limit history size
-          return [...newHistory, { data: newData, action }];
-      });
-      setHistoryIndex(prev => Math.min(prev + 1, 50));
-  };
-
-  const undo = useCallback(() => {
-      if (historyIndex > 0) {
-          isUndoRedoAction.current = true;
-          const prevItem = history[historyIndex - 1];
-          const currentItem = history[historyIndex]; // The action we are undoing
-          
-          setHistoryIndex(prev => prev - 1);
-          setData(prevItem.data);
-          
-          // Feedback
-          const actionText = currentItem.action.startsWith('act_') ? I18N[currentItem.action][language] : currentItem.action;
-          showToast(`${I18N.action_undone[language]}: ${actionText}`, 'info');
-      }
-  }, [history, historyIndex, language, showToast]);
-
-  const redo = useCallback(() => {
-      if (historyIndex < history.length - 1) {
-          isUndoRedoAction.current = true;
-          const nextItem = history[historyIndex + 1];
-          
-          setHistoryIndex(prev => prev + 1);
-          setData(nextItem.data);
-
-          // Feedback
-          const actionText = nextItem.action.startsWith('act_') ? I18N[nextItem.action][language] : nextItem.action;
-          showToast(`${I18N.action_redone[language]}: ${actionText}`, 'info');
-      }
-  }, [history, historyIndex, language, showToast]);
-
-  // Keyboard Shortcuts
+  // 4. Keyboard Shortcuts
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
               e.preventDefault();
-              if (e.shiftKey) {
-                  redo();
-              } else {
-                  undo();
-              }
+              e.shiftKey ? history.redo() : history.undo();
           }
           if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
               e.preventDefault();
-              redo();
+              history.redo();
           }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  }, [history]);
 
-
-  const modifyData = (newData: WorldData, actionKey: string) => {
-      pushHistory(newData, actionKey);
-      setData(newData);
-  };
+  // --- CRUD Operations (Proxies to History Push) ---
 
   const addEntity = (entity: Omit<Entity, 'id' | 'createdAt' | 'updatedAt'>, actionMsg?: string) => {
     const newEntity: Entity = {
@@ -120,7 +61,7 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
       entities: [newEntity, ...data.entities],
       lastModified: Date.now(),
     };
-    modifyData(newData, actionMsg || 'act_create_entity');
+    history.push(newData, actionMsg || 'act_create_entity');
   };
 
   const updateEntity = (id: string, updates: Partial<Entity>, actionMsg?: string) => {
@@ -129,16 +70,10 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
       entities: data.entities.map(e => (e.id === id ? { ...e, ...updates, updatedAt: Date.now() } : e)),
       lastModified: Date.now(),
     };
+    let action = actionMsg || 'act_update_entity';
+    if (!actionMsg && updates.relationships) action = 'act_update_rel';
     
-    // Determine action description if not provided
-    let action = 'act_update_entity';
-    if (!actionMsg) {
-        if (updates.relationships) action = 'act_update_rel';
-    } else {
-        action = actionMsg;
-    }
-    
-    modifyData(newData, action);
+    history.push(newData, action);
   };
 
   const deleteEntity = (id: string) => {
@@ -147,7 +82,7 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
       entities: data.entities.filter(e => e.id !== id),
       lastModified: Date.now(),
     };
-    modifyData(newData, 'act_delete_entity');
+    history.push(newData, 'act_delete_entity');
   };
 
   const addCategory = (category: Omit<Category, 'id'>) => {
@@ -159,7 +94,7 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
       ...data,
       categories: [...data.categories, newCategory],
     };
-    modifyData(newData, 'act_create_cat');
+    history.push(newData, 'act_create_cat');
   };
 
   const updateCategory = (id: string, updates: Partial<Category>) => {
@@ -168,7 +103,7 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
       categories: data.categories.map(c => (c.id === id ? { ...c, ...updates } : c)),
       lastModified: Date.now(),
     };
-    modifyData(newData, 'act_update_cat');
+    history.push(newData, 'act_update_cat');
   };
 
   const deleteCategory = (id: string) => {
@@ -177,7 +112,7 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
       categories: data.categories.filter(c => c.id !== id),
       lastModified: Date.now(),
     };
-    modifyData(newData, 'act_delete_cat');
+    history.push(newData, 'act_delete_cat');
   };
 
   const updateCalendar = (config: CalendarConfig) => {
@@ -186,24 +121,20 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
           calendarConfig: config,
           lastModified: Date.now()
       };
-      modifyData(newData, 'act_update_calendar');
+      history.push(newData, 'act_update_calendar');
   };
 
-  // Renames an era and updates all entities using it
   const renameEra = (eraId: string, newName: string) => {
       const config = data.calendarConfig || { eras: [], months: [], daysInYear: 365, useEras: true };
-      
       const targetEra = config.eras.find(e => e.id === eraId);
       if (!targetEra) return;
+      
       const oldName = targetEra.name;
-
-      // 1. Update Config
       const newConfig = {
           ...config,
           eras: config.eras.map(e => e.id === eraId ? { ...e, name: newName } : e)
       };
 
-      // 2. Update all Entities that used this Era (Text match based on old name)
       const eraKeys = ['era', 'epoch', 'age', '纪元', '时代'];
       const endEraKeys = ['end era', 'end epoch'];
       
@@ -217,10 +148,7 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
              }
              return a;
           });
-
-          if (hasChanges) {
-              return { ...e, attributes: newAttributes, updatedAt: Date.now() };
-          }
+          if (hasChanges) return { ...e, attributes: newAttributes, updatedAt: Date.now() };
           return e;
       });
 
@@ -231,7 +159,7 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
           lastModified: Date.now()
       };
       
-      modifyData(newData, 'act_update_calendar');
+      history.push(newData, 'act_update_calendar');
       showToast(`${I18N.act_update_calendar[language]}: Renamed ${oldName} to ${newName}`, 'success');
   };
 
@@ -241,10 +169,7 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
     try {
       const parsed = JSON.parse(json);
       if (parsed.entities && Array.isArray(parsed.categories)) {
-        // Reset history on import
-        setHistory([{ data: parsed, action: 'Import' }]);
-        setHistoryIndex(0);
-        setData(parsed);
+        history.reset(parsed);
         return true;
       }
       return false;
@@ -269,10 +194,10 @@ export const WorldProvider = ({ children }: { children: ReactNode }) => {
         renameEra,
         exportData,
         importData,
-        undo,
-        redo,
-        canUndo: historyIndex > 0,
-        canRedo: historyIndex < history.length - 1
+        undo: history.undo,
+        redo: history.redo,
+        canUndo: history.canUndo,
+        canRedo: history.canRedo
       }}
     >
       {children}
